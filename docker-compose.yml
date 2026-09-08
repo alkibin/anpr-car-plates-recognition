@@ -1,0 +1,25 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    ports:
+      - "8554:8554"   # RTSP
+      - "1935:1935"   # RTMP (на будущее, не обязателен)
+      - "8888:8888"   # HLS (удобно для просмотра в браузере)
+      - "9997:9997"   # API mediamtx (метрики, список потоков)
+    restart: unless-stopped
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - mediamtx
+    volumes:
+      - ./app:/app/app
+      - ./data:/app/data
+
