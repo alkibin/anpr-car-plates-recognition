@@ -1,28 +1,24 @@
-import sqlite3
-from app.events.models import RecognitionEvent
+import redis
 
 
-class EventStorage:
-    def __init__(self, db_path: str = "data/anpr.db"):
-        self.conn = sqlite3.connect(db_path)
-        self._init_db()
+class PlateDedupStore:
+    """
+    Хранилище уже увиденных номеров в Redis.
+    Ключ — сам номер, TTL — чтобы через какое-то время номер снова
+    считался "новым" (машина может уехать и вернуться завтра).
+    """
 
-    def _init_db(self):
-        self.conn.execute("""
-            CREATE TABLE IF NOT EXISTS events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                plate_text TEXT,
-                confidence REAL,
-                timestamp TEXT,
-                frame_path TEXT,
-                camera_id TEXT
-            )
-        """)
-        self.conn.commit()
+    def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0, ttl_seconds: int = 3600):
+        self.client = redis.Redis(host=host, port=port, db=db, decode_responses=True)
+        self.ttl_seconds = ttl_seconds
 
-    def save(self, event: RecognitionEvent):
-        self.conn.execute(
-            "INSERT INTO events (plate_text, confidence, timestamp, frame_path, camera_id) VALUES (?, ?, ?, ?, ?)",
-            (event.plate_text, event.confidence, event.timestamp.isoformat(), event.frame_path, event.camera_id),
-        )
-        self.conn.commit()
+    def is_new(self, plate_text: str) -> bool:
+        """True, если номер ранее не встречался (или его TTL истёк)."""
+        return self.client.get(self._key(plate_text)) is None
+
+    def mark_seen(self, plate_text: str) -> None:
+        self.client.set(self._key(plate_text), "1", ex=self.ttl_seconds)
+
+    @staticmethod
+    def _key(plate_text: str) -> str:
+        return f"seen_plate:{plate_text}"

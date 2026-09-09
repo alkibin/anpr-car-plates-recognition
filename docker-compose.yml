@@ -8,18 +8,40 @@ services:
       - "8888:8888"   # HLS (удобно для просмотра в браузере)
       - "9997:9997"   # API mediamtx (метрики, список потоков)
     restart: unless-stopped
-    volumes:
-      - ./mediamtx.yml:/mediamtx.yml
 
-  app:
-    build: .
+  redis:
+    image: redis:7-alpine
+    container_name: anpr-redis
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      - mediamtx
-    volumes:
-      - ./app:/app/app
-      - ./data:/app/data
+      - "6379:6379"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: anpr-postgres
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  s3:
+    image: minio
+    container_name: anpr-s3
+    ports:
+      - "9000:9000"
+    restart: unless-stopped
+
+
+
+
+#  app:
+#    build: .
+#    ports:
+#      - "8000:8000"
+#    env_file:
+#      - .env
+#    depends_on:
+#      - mediamtx
+#    volumes:
+#      - ./app:/app/app
+#      - ./data:/app/data
 
