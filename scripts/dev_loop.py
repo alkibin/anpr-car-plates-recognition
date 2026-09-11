@@ -2,9 +2,15 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-import cv2
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings")
+import django
+
+django.setup()
 
 from app.config import settings  # ВАЖНО: импорт раньше cv2/reader — выставляет env var
+
+import cv2
 
 import time
 import logging
@@ -21,6 +27,22 @@ from app.events.storage import PlateDedupStore
 from app.recognition.tracker import PlateTracker
 
 from app.video.threaded_reader import ThreadedRTSPReader
+
+from app.detection.models import Camera, PlateDetection
+from app.storage import minio_adapter
+
+
+def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop_bytes: bytes):
+    camera = Camera.objects.filter(is_active=True).first()
+    object_key = minio_adapter.upload_plate_crop(crop_bytes, plate_text)
+    PlateDetection.objects.create(
+        camera=camera,
+        plate_text=plate_text,
+        detection_confidence=detection_conf,
+        ocr_confidence=ocr_conf,
+        crop_object_key=object_key,
+    )
+    print(f"[DB] сохранено {plate_text} в PostgreSQL, crop: {object_key}")
 
 
 def main():
@@ -46,19 +68,26 @@ def main():
                 if not boxes:
                     continue
 
-                cropped_boxes = [plate_detector.add_padding(frame, box) for box in boxes]
+                for box in boxes:
+                    det_conf = box[4]
+                    crop = plate_detector.add_padding(frame, box)
+                    for final_text, rec_scores, plate in ocr.read([crop]):
+                        if not dedup_store.is_new(final_text):
+                            print(f"[SKIP] {final_text} уже был обработан недавно")
+                            continue
 
-                for final_text, avg_conf, crop in ocr.read(cropped_boxes):
-                    if not dedup_store.is_new(final_text):
-                        print(f"[SKIP] {final_text} уже был обработан недавно")
-                        continue
+                        dedup_store.mark_seen(final_text)
+                        ocr_conf = float(rec_scores[0]) if rec_scores else 0.0
+                        print(f"[PLATE][FINAL] {final_text} (ocr_conf={ocr_conf:.2f}, det_conf={det_conf:.2f})")
 
-                    dedup_store.mark_seen(final_text)
-                    print(f"[PLATE][FINAL] {final_text} (avg_conf={max(avg_conf):.2f})")
-
-                    # if finished_track.best_crop is not None:
-                    filename = f"scripts/files/{final_text}_{max(avg_conf):.2f}.jpg"
-                    cv2.imwrite(filename, crop)
+                        ok, buf = cv2.imencode(".jpg", plate)
+                        if ok:
+                            save_detection(
+                                final_text,
+                                detection_conf=det_conf,
+                                ocr_conf=ocr_conf,
+                                crop_bytes=buf.tobytes(),
+                            )
 
             time.sleep(settings.check_interval_sec)
     except KeyboardInterrupt:

@@ -1,29 +1,43 @@
 # AGENTS.md
 
-ANPR pet project — minimal FastAPI + YOLO + OCR scaffold. Mostly placeholder code at this stage.
+ANPR pet project — RTSP → YOLO plate detection → OCR → PostgreSQL (Django admin) + MinIO crop storage. FastAPI is secondary/deprecated for UI; Django admin is the control plane.
 
 ## Commands
 
 ```bash
-uvicorn app.main:app --reload   # run API locally on :8000
-docker compose up -d            # run media server (RTSP) + app
-./streaming/stream_to_mediamtx.sh streaming/cars.mp4   # push looped feed
+# Infra (postgres, minio, redis, mediamtx)
+docker compose up -d postgres minio redis mediamtx
+
+# Django admin (dev server, http://localhost:8000/admin/)
+.venv/bin/python manage.py runserver
+# Docker runs migrate on start; superuser: admin/admin (created against local PG)
+
+# Pipeline dev loop (RTSP → detect → OCR → save to PG + MinIO)
+.venv/bin/python -m scripts.dev_loop
+
+# Infra checks / management
+.venv/bin/python manage.py migrate            # applies migrations
+.venv/bin/python manage.py makemigrations     # new models → migration
+./streaming/stream_to_mediamtx.sh streaming/cars.mp4  # push looped feed
 ```
 
-## Repo gaps (do not reinvent — be aware)
+## Architecture
 
-- `README.md` says `cp .env.example .env`, but **`.env.example` does not exist**. `.env` itself is gitignored; a fresh clone has none. New setup relies on `app/config.py` defaults.
-- `docker-compose.yml` `app.build` references a **missing `Dockerfile`**, and mounts `./mediamtx.yml` which **does not exist**. `docker compose up` will fail until these are added.
-- Tests dir exists but is empty — no test runner configured.
+- **Django ORM is the ONLY data-access layer** — no SQLAlchemy. Models in `app/detection/models.py` (`Camera`, `PlateDetection`).
+- Admin: `app/detection/admin.py`, Django project config in `app/settings.py`, entry `manage.py` (DB=PostgreSQL; `POSTGRES_HOST=postgres` in Docker, override to `localhost` for local runs via `.env`).
+- Pipeline: `scripts/dev_loop.py` calls `django.setup()`, writes via ORM, saves crops via `app/storage/minio_adapter.py` (MinIO SDK). Redis dedup via `app/events/storage.py`.
+- FastAPI (`app/main.py`, `app/api/routes.py`) is legacy/unused — do NOT extend it.
 
 ## Config / runtime quirks
 
-- `.env` is read by `app/config.py` (pydantic-settings, `env_file=".env"`). Keys mirror the `Settings` fields.
-- `RTSP_URL` in `.env` uses host `mediamtx` (docker-compose service name). That host **only resolves when the app runs inside Docker**; running `uvicorn` on the host, the RTSP URL resolves to nothing. To test locally, override `RTSP_URL`/pass `rtsp://localhost:8554/stream`.
-- Default SQLite DB path is `data/anpr.db`; `data/` and `*.db` are gitignored (created at runtime).
+- Two config layers: `app/config.py` (pydantic-settings, pipeline values like RTSP/YOLO/Redis/MinIO) and Django `app/settings.py` (reads same `.env` via `dotenv.load_dotenv`).
+- `.env` is gitignored; `POSTGRES_HOST`, `MINIO_ENDPOINT` default to docker service names (`postgres`, `minio:9000`) — set them to `localhost` for host-side dev (`scripts/dev_loop.py`, `manage.py`).
+- MinIO bucket `anpr-crops` is created lazily by `ensure_bucket()` on first upload. S3 API port `9000`, console (Web UI) `9001`.
+- Redis dedup TTL (`PLATE_DEDUP_TTL_SECONDS`) means a plate is written to PG at most once per TTL window.
+- Migrations live at `app/detection/migrations/`.
 
 ## Conventions
 
-- Sources live under `app/` as packages: `app/video`, `app/onvif`, `app/recognition`, `app/events`, `app/api`. Entry point is `app/main.py`; API routes in `app/api/routes.py` are **not yet registered** on the FastAPI app.
-- Binary artifacts committed to version control: only source code. Video files (`streaming/*.mp4`), model weights (`*.pt`), and IDE/venv files are gitignored.
-- Keep placeholder files (`__init__.py`) in each subpackage.
+- Binary artifacts: video (`streaming/*.mp4/.mov`), weights (`*.pt`), IDE dirs, `.env` are gitignored.
+- Django app `app.detection` holds models/admin/migrations; new DB-backed features go there.
+- Keep `__init__.py` in each subpackage.

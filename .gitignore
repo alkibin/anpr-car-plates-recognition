@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+
+# Environment
+.env
+
+# Data / runtime
+data/
+*.db
+scripts/files/
+*.jpg
+*.jpeg
+
+# Video
+streaming/*.mp4
+streaming/*.avi
+streaming/*.mkv
+streaming/*.MOV
+
+# Model weights
+*.pt
+*.pth
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Scratch
+ttt.py
+scratch*.py

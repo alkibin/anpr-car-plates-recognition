@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     plate_dedup_ttl_seconds: int = 3600
 
+    minio_endpoint: str = "localhost:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    minio_bucket: str = "anpr-crops"
+    minio_secure: bool = False
+
 
 settings = Settings()
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = f"rtsp_transport;{settings.rtsp_transport}"

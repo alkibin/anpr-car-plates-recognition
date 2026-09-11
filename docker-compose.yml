@@ -19,29 +19,70 @@ services:
   postgres:
     image: postgres:16
     container_name: anpr-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-anpr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anpr}
+      POSTGRES_DB: ${POSTGRES_DB:-anpr}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-anpr} -d ${POSTGRES_DB:-anpr}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
-  s3:
-    image: minio
-    container_name: anpr-s3
+  minio:
+    image: minio/minio:latest
+    container_name: anpr-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     ports:
-      - "9000:9000"
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
+  django:
+    image: python:3.12-slim
+    container_name: anpr-django
+    working_dir: /app
+    command: >
+      sh -c "pip install -r /app/requirements.txt &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: app.settings
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-anpr-crops}
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
 
-
-
-#  app:
-#    build: .
-#    ports:
-#      - "8000:8000"
-#    env_file:
-#      - .env
-#    depends_on:
-#      - mediamtx
-#    volumes:
-#      - ./app:/app/app
-#      - ./data:/app/data
-
+volumes:
+  postgres_data:
+  minio_data:
