@@ -89,3 +89,19 @@ def object_exists(object_key: str) -> bool:
         return True
     except S3Error:
         return False
+
+
+def read_object(object_key: str) -> bytes | None:
+    """Возвращает содержимое объекта MinIO байтами (для показа в админке) или None, если объекта нет."""
+    if not object_key:
+        return None
+    try:
+        client = _client()
+        response = client.get_object(settings.MINIO_BUCKET, object_key)
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()
+    except S3Error:
+        return None

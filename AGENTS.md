@@ -31,7 +31,7 @@ GET /api/stats/                           # totals, by-status, by-camera, last 2
 ## Architecture
 
 - **Django ORM is the ONLY data-access layer** — no SQLAlchemy. Models in `app/detection/models.py` (`Camera`, `Plate`, `PlateDetection`). `Plate` aggregates detections: status, first/last seen, count, stable `photo_key` (written once, key `plates/photos/{plate}.jpg`).
-- Admin: `app/detection/admin.py`, Django project config in `app/settings.py`, entry `manage.py` (DB=PostgreSQL; `POSTGRES_HOST=postgres` in Docker, override to `localhost` for local runs via `.env`).
+- Admin: `app/detection/admin.py`, Django project config in `app/settings.py`, entry `manage.py` (DB=PostgreSQL; `POSTGRES_HOST=postgres` in Docker, override to `localhost` for local runs via `.env`). Plate change form shows photo/crop previews served by Django views `<int:plate_id>/photo/` and `<int:plate_id>/crop/` (via `minio_adapter.read_object`), so MinIO bucket needs no public policy.
 - Pipeline: `scripts/dev_loop.py` calls `django.setup()`, writes via ORM, saves crops via `app/storage/minio_adapter.py` (MinIO SDK). Redis dedup via `app/events/storage.py`.
 - REST API: plain Django JSON views in `app/api/views.py` (no DRF). Tests in `app/detection/tests/`.
 - FastAPI (`app/main.py` removed, `app/api/routes.py` removed) is legacy — do NOT reintroduce it.
