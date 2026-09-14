@@ -18,15 +18,23 @@ docker compose up -d postgres minio redis mediamtx
 # Infra checks / management
 .venv/bin/python manage.py migrate            # applies migrations
 .venv/bin/python manage.py makemigrations     # new models → migration
+.venv/bin/python manage.py test               # run tests (Django runner, uses test_anpr DB)
 ./streaming/stream_to_mediamtx.sh streaming/cars.mp4  # push looped feed
+
+# REST API (new project: no DRF, plain Django JSON views)
+GET /api/plates/                          # ?status=&search=&limit=&offset=
+GET /api/plates/<plate_text>/             # plate + its detections; 404 if unknown
+GET /api/detections/                      # ?plate=&camera_id=&from=&to=
+GET /api/stats/                           # totals, by-status, by-camera, last 24h/1h
 ```
 
 ## Architecture
 
-- **Django ORM is the ONLY data-access layer** — no SQLAlchemy. Models in `app/detection/models.py` (`Camera`, `PlateDetection`).
+- **Django ORM is the ONLY data-access layer** — no SQLAlchemy. Models in `app/detection/models.py` (`Camera`, `Plate`, `PlateDetection`). `Plate` aggregates detections: status, first/last seen, count, stable `photo_key` (written once, key `plates/photos/{plate}.jpg`).
 - Admin: `app/detection/admin.py`, Django project config in `app/settings.py`, entry `manage.py` (DB=PostgreSQL; `POSTGRES_HOST=postgres` in Docker, override to `localhost` for local runs via `.env`).
 - Pipeline: `scripts/dev_loop.py` calls `django.setup()`, writes via ORM, saves crops via `app/storage/minio_adapter.py` (MinIO SDK). Redis dedup via `app/events/storage.py`.
-- FastAPI (`app/main.py`, `app/api/routes.py`) is legacy/unused — do NOT extend it.
+- REST API: plain Django JSON views in `app/api/views.py` (no DRF). Tests in `app/detection/tests/`.
+- FastAPI (`app/main.py` removed, `app/api/routes.py` removed) is legacy — do NOT reintroduce it.
 
 ## Config / runtime quirks
 
