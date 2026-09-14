@@ -42,6 +42,7 @@ GET /api/stats/                           # totals, by-status, by-camera, last 2
 - `.env` is gitignored; `POSTGRES_HOST`, `MINIO_ENDPOINT` default to docker service names (`postgres`, `minio:9000`) — set them to `localhost` for host-side dev (`scripts/dev_loop.py`, `manage.py`).
 - MinIO bucket `anpr-crops` is created lazily by `ensure_bucket()` on first upload. S3 API port `9000`, console (Web UI) `9001`.
 - Redis dedup TTL (`PLATE_DEDUP_TTL_SECONDS`) means a plate is written to PG at most once per TTL window.
+- Crop upload throttle (`CROP_UPLOAD_TTL_SECONDS`, default 86400/24h) — `PlateDedupStore.should_upload_crop()` prevents repeated crop writes for the same plate.
 - Migrations live at `app/detection/migrations/`.
 
 ## Conventions

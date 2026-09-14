@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
     plate_dedup_ttl_seconds: int = 3600
+    crop_upload_ttl_seconds: int = 86400
 
     minio_endpoint: str = "localhost:9000"
     minio_access_key: str = "minioadmin"

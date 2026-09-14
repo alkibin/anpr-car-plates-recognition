@@ -27,3 +27,16 @@ class PlateDedupStore:
     def _key(plate_text: str) -> str:
         """Строит Redis-ключ для заданного номера."""
         return f"seen_plate:{plate_text}"
+
+    def should_upload_crop(self, plate_text: str, ttl_seconds: int = 86400) -> bool:
+        """True, если кроп ещё не загружался за последние ttl_seconds.
+
+        Каждый вызов с уникальным ttl_seconds создаёт отдельный ключ,
+        поэтому дефолтные 24 ч (86400 с) не пересекаются с TTL основного
+        ключа дедупликации seen_plate.
+        """
+        key = f"crop_throttle:{plate_text}"
+        if self.client.get(key) is not None:
+            return False
+        self.client.set(key, "1", ex=ttl_seconds)
+        return True

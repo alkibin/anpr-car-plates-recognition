@@ -35,8 +35,8 @@ from app.detection.models import Camera, Plate, PlateDetection
 from app.storage import minio_adapter
 
 
-def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop_bytes: bytes):
-    """Сохраняет распознанный номер в PostgreSQL и MinIO: создаёт/обновляет Plate, загружает кроп и стабильное фото номера, создаёт PlateDetection."""
+def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop_bytes: bytes, dedup_store: "PlateDedupStore"):
+    """Сохраняет распознанный номер в PostgreSQL и MinIO: создаёт/обновляет Plate, загружает кроп (не чаще раза в сутки) и стабильное фото, создаёт PlateDetection."""
     camera = Camera.objects.filter(is_active=True).first()
 
     plate, _ = Plate.objects.get_or_create(
@@ -44,8 +44,11 @@ def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop
         defaults={"last_seen": timezone.now()},
     )
 
-    # Кроп конкретного распознавания — пишем всегда.
-    object_key = minio_adapter.upload_plate_crop(crop_bytes, plate_text)
+    # Кроп — загружаем не чаще раза в crop_upload_ttl_seconds (по умолчанию 24ч).
+    if dedup_store.should_upload_crop(plate_text, ttl_seconds=settings.crop_upload_ttl_seconds):
+        object_key = minio_adapter.upload_plate_crop(crop_bytes, plate_text)
+    else:
+        object_key = plate.last_crop_key or ""
 
     # Фото номера — единый стабильный объект, записываем только если его нет в S3.
     photo_key, photo_uploaded = minio_adapter.store_plate_photo(crop_bytes, plate_text)
@@ -109,6 +112,7 @@ def main():
                                 detection_conf=det_conf,
                                 ocr_conf=ocr_conf,
                                 crop_bytes=buf.tobytes(),
+                                dedup_store=dedup_store,
                             )
 
             time.sleep(settings.check_interval_sec)
