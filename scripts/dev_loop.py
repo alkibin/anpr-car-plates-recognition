@@ -15,6 +15,8 @@ import cv2
 import time
 import logging
 
+from django.utils import timezone
+
 from app.video.motion import MotionDetector
 from app.recognition.plate_detector import PlateDetector
 from app.recognition.ocr import PlateOCR
@@ -28,16 +30,23 @@ from app.recognition.tracker import PlateTracker
 
 from app.video.threaded_reader import ThreadedRTSPReader
 
-from app.detection.models import Camera, PlateDetection
+from app.detection.models import Camera, Plate, PlateDetection
 from app.storage import minio_adapter
 
 
 def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop_bytes: bytes):
     camera = Camera.objects.filter(is_active=True).first()
     object_key = minio_adapter.upload_plate_crop(crop_bytes, plate_text)
-    PlateDetection.objects.create(
-        camera=camera,
+
+    plate, _ = Plate.objects.get_or_create(
         plate_text=plate_text,
+        defaults={"last_seen": timezone.now()},
+    )
+    plate.seen_again(last_crop_key=object_key)
+
+    PlateDetection.objects.create(
+        plate=plate,
+        camera=camera,
         detection_confidence=detection_conf,
         ocr_confidence=ocr_conf,
         crop_object_key=object_key,

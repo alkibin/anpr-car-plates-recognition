@@ -23,6 +23,14 @@ def ensure_bucket() -> None:
         client.make_bucket(bucket)
 
 
+def build_crop_url(object_key: str) -> str:
+    """Строит публичный URL кропа в MinIO (без presign, для локальной разработки)."""
+    if not object_key:
+        return ""
+    scheme = "https" if settings.MINIO_SECURE else "http"
+    return f"{scheme}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{object_key}"
+
+
 def upload_plate_crop(image_bytes: bytes, plate_text: str) -> str:
     """Загружает обрезанный кадр номера в MinIO, возвращает object key."""
     ensure_bucket()
