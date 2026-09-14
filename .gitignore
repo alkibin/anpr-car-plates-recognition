@@ -30,6 +30,9 @@ streaming/*.MOV
 *.pt
 *.pth
 
+# Collected static (whitenoise)
+staticfiles/
+
 # OS
 .DS_Store
 

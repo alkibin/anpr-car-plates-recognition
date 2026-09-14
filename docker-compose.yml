@@ -60,6 +60,7 @@ services:
     working_dir: /app
     command: >
       sh -c "pip install -q -r /app/requirements-django.txt &&
+             python manage.py collectstatic --noinput &&
              python manage.py migrate &&
              gunicorn --bind 0.0.0.0:8000 app.wsgi:application"
     environment:
