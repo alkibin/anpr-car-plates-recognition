@@ -31,6 +31,32 @@ def build_crop_url(object_key: str) -> str:
     return f"{scheme}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{object_key}"
 
 
+def plate_photo_key(plate_text: str) -> str:
+    """Детерминированный object key фото номера — один на весь жизненный цикл."""
+    return f"plates/photos/{plate_text}.jpg"
+
+
+def store_plate_photo(image_bytes: bytes, plate_text: str) -> tuple[str, bool]:
+    """Сохраняет фото номера, если его ещё нет в бакете.
+
+    Возвращает (object_key, uploaded: bool) — uploaded=True, если фото записано
+    только сейчас (первое распознавание), иначе (существующий ключ, False).
+    """
+    ensure_bucket()
+    object_name = plate_photo_key(plate_text)
+    if object_exists(object_name):
+        return object_name, False
+    client = _client()
+    client.put_object(
+        settings.MINIO_BUCKET,
+        object_name,
+        io.BytesIO(image_bytes),
+        length=len(image_bytes),
+        content_type="image/jpeg",
+    )
+    return object_name, True
+
+
 def upload_plate_crop(image_bytes: bytes, plate_text: str) -> str:
     """Загружает обрезанный кадр номера в MinIO, возвращает object key."""
     ensure_bucket()

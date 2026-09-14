@@ -36,13 +36,22 @@ from app.storage import minio_adapter
 
 def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop_bytes: bytes):
     camera = Camera.objects.filter(is_active=True).first()
-    object_key = minio_adapter.upload_plate_crop(crop_bytes, plate_text)
 
     plate, _ = Plate.objects.get_or_create(
         plate_text=plate_text,
         defaults={"last_seen": timezone.now()},
     )
+
+    # Кроп конкретного распознавания — пишем всегда.
+    object_key = minio_adapter.upload_plate_crop(crop_bytes, plate_text)
+
+    # Фото номера — единый стабильный объект, записываем только если его нет в S3.
+    photo_key, photo_uploaded = minio_adapter.store_plate_photo(crop_bytes, plate_text)
+
     plate.seen_again(last_crop_key=object_key)
+    if photo_uploaded:
+        plate.photo_key = photo_key
+        plate.save(update_fields=["photo_key"])
 
     PlateDetection.objects.create(
         plate=plate,
@@ -51,7 +60,8 @@ def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop
         ocr_confidence=ocr_conf,
         crop_object_key=object_key,
     )
-    print(f"[DB] сохранено {plate_text} в PostgreSQL, crop: {object_key}")
+    action = "фото сохранено" if photo_uploaded else "фото уже есть"
+    print(f"[DB] {plate_text} в PostgreSQL, crop: {object_key} ({action})")
 
 
 def main():

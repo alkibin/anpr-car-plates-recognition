@@ -43,6 +43,7 @@ def _plate_dump(plate):
         "last_seen": plate.last_seen.isoformat(),
         "detection_count": plate.detection_count,
         "crop_url": build_crop_url(plate.last_crop_key),
+        "photo_url": plate.photo_url,
         "note": plate.note,
     }
 

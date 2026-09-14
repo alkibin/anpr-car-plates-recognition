@@ -31,6 +31,7 @@ class Plate(models.Model):
     last_seen = models.DateTimeField("Последнее появление", db_index=True)
     detection_count = models.PositiveIntegerField("Кол-во распознаваний", default=0)
     last_crop_key = models.CharField("Последний кроп (S3)", max_length=512, blank=True, default="")
+    photo_key = models.CharField("Фото номера (S3)", max_length=512, blank=True, default="")
     note = models.TextField("Заметка", blank=True, default="")
 
     class Meta:
@@ -45,6 +46,11 @@ class Plate(models.Model):
     def crop_url(self):
         from app.storage.minio_adapter import build_crop_url
         return build_crop_url(self.last_crop_key)
+
+    @property
+    def photo_url(self):
+        from app.storage.minio_adapter import build_crop_url
+        return build_crop_url(self.photo_key)
 
     def seen_again(self, last_crop_key: str = ""):
         """Обновляет агрегаты при новом распознавании номера."""

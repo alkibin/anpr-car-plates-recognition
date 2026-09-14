@@ -35,7 +35,7 @@ class PlateAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {"fields": ("plate_text", "status", "note")}),
         ("Статистика", {"fields": ("first_seen", "last_seen", "detection_count")}),
-        ("Последний кроп", {"fields": ("last_crop_key",)}),
+        ("Хранилище", {"fields": ("photo_key", "last_crop_key")}),
     )
     inlines = (PlateDetectionInline,)
     actions = ("mark_allowed", "mark_denied", "mark_unknown")
