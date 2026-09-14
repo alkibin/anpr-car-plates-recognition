@@ -59,9 +59,9 @@ services:
     container_name: anpr-django
     working_dir: /app
     command: >
-      sh -c "pip install -r /app/requirements.txt &&
+      sh -c "pip install -q -r /app/requirements-django.txt &&
              python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+             gunicorn --bind 0.0.0.0:8000 app.wsgi:application"
     environment:
       DJANGO_SETTINGS_MODULE: app.settings
       POSTGRES_HOST: postgres
