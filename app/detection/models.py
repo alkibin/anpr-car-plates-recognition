@@ -1,7 +1,10 @@
+"""Модели Django: Camera, Plate и PlateDetection — основа данных о распознавании."""
+
 from django.db import models
 
 
 class Camera(models.Model):
+    """Камера видеонаблюдения: имя, RTSP-URL, местоположение и активность."""
     name = models.CharField("Название", max_length=128, unique=True)
     rtsp_url = models.URLField("RTSP URL", max_length=512)
     location = models.CharField("Местоположение", max_length=256, blank=True, default="")
@@ -9,16 +12,20 @@ class Camera(models.Model):
     created_at = models.DateTimeField("Создана", auto_now_add=True)
 
     class Meta:
+        """Метаданные камеры: читаемые имена и сортировка по имени."""
         verbose_name = "Камера"
         verbose_name_plural = "Камеры"
         ordering = ["name"]
 
     def __str__(self):
+        """Возвращает имя камеры для отображения."""
         return self.name
 
 
 class Plate(models.Model):
+    """Номер транспортного средства — агрегат своих детекций с статусом и фото."""
     class Status(models.TextChoices):
+        """Допустимые статусы номера: неизвестен, разрешён, запрещён."""
         UNKNOWN = "unknown", "Неизвестен"
         ALLOWED = "allowed", "Разрешён"
         DENIED = "denied", "Запрещён"
@@ -35,20 +42,24 @@ class Plate(models.Model):
     note = models.TextField("Заметка", blank=True, default="")
 
     class Meta:
+        """Метаданные номера: читаемые имена и сортировка по последнему появлению."""
         verbose_name = "Номер"
         verbose_name_plural = "Номера"
         ordering = ["-last_seen"]
 
     def __str__(self):
+        """Возвращает строковое представление номера с его статусом."""
         return f"{self.plate_text} ({self.get_status_display()})"
 
     @property
     def crop_url(self):
+        """URL последнего кропа номера в MinIO."""
         from app.storage.minio_adapter import build_crop_url
         return build_crop_url(self.last_crop_key)
 
     @property
     def photo_url(self):
+        """URL стабильного фото номера в MinIO."""
         from app.storage.minio_adapter import build_crop_url
         return build_crop_url(self.photo_key)
 
@@ -64,6 +75,7 @@ class Plate(models.Model):
 
 
 class PlateDetection(models.Model):
+    """Одно распознавание номера: камера, уверенности, время и ключ кропа в S3."""
     plate = models.ForeignKey(
         Plate,
         on_delete=models.CASCADE,
@@ -86,14 +98,17 @@ class PlateDetection(models.Model):
     detected_at = models.DateTimeField("Время распознавания", auto_now_add=True, db_index=True)
 
     class Meta:
+        """Метаданные распознавания: читаемые имена и сортировка по времени."""
         verbose_name = "Распознавание"
         verbose_name_plural = "Распознавания"
         ordering = ["-detected_at"]
 
     def __str__(self):
+        """Возвращает номер и уверенность детекции в строковом виде."""
         return f"{self.plate.plate_text} ({self.detection_confidence:.0%})"
 
     @property
     def crop_url(self):
+        """URL кропа распознавания в MinIO."""
         from app.storage.minio_adapter import build_crop_url
         return build_crop_url(self.crop_object_key)

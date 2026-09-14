@@ -1,3 +1,5 @@
+"""Детекция номерных знаков через YOLO с фильтрацией по форме и краям."""
+
 from ultralytics import YOLO
 import numpy as np
 import math
@@ -5,7 +7,9 @@ import math
 
 
 class PlateDetector:
+    """Обнаруживает номерные знаки на кадре, отбрасывая обрезанные артефакты."""
     def __init__(self, model_path: str, confidence: float = 0.4):
+        """Загружает YOLO-модель и сохраняет порог уверенности детекции."""
         self.model = YOLO(model_path)
         self.confidence = confidence
 

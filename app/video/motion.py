@@ -1,3 +1,5 @@
+"""Определение наличия движения в кадре (вычитание фона MOG2)."""
+
 import cv2
 
 
@@ -8,12 +10,14 @@ class MotionDetector:
     """
 
     def __init__(self, threshold_area: int = 1500):
+        """Создаёт MOG2-вычитатель фона и сохраняет порог площади движения."""
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
             history=500, varThreshold=16, detectShadows=False
         )
         self.threshold_area = threshold_area
 
     def has_motion(self, frame) -> bool:
+        """True, если в кадре есть контуры движения крупнее threshold_area."""
         mask = self.bg_subtractor.apply(frame)
         # убираем шум мелкими эрозией/дилатацией
         mask = cv2.erode(mask, None, iterations=1)

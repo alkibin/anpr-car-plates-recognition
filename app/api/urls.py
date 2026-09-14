@@ -1,3 +1,5 @@
+"""URL-маршруты REST API: номера, распознавания, статистика."""
+
 from django.urls import path
 
 from app.api import views

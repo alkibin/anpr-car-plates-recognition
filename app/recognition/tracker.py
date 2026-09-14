@@ -1,3 +1,5 @@
+"""Упрощённый трекинг номеров по IoU боксов между соседними кадрами."""
+
 import time
 from dataclasses import dataclass, field
 from collections import Counter
@@ -5,6 +7,7 @@ import numpy as np
 
 
 def iou(box_a, box_b) -> float:
+    """Возвращает Intersection over Union (0..1) между двумя боксами."""
     ax1, ay1, ax2, ay2 = box_a[:4]
     bx1, by1, bx2, by2 = box_b[:4]
 
@@ -23,6 +26,7 @@ def iou(box_a, box_b) -> float:
 
 @dataclass
 class PlateTrack:
+    """Состояние отслеживаемого номера: боксы, голоса OCR и лучший кроп."""
     last_box: tuple
     votes: list[tuple[str, float]] = field(default_factory=list)
     last_seen: float = field(default_factory=time.time)
@@ -30,6 +34,7 @@ class PlateTrack:
     best_crop_conf: float = 0.0
 
     def add_vote(self, text: str, confidence: float, box: tuple, crop: np.ndarray) -> None:
+        """Добавляет голос OCR в трек и сохраняет кроп с максимальной уверенностью."""
         self.votes.append((text, confidence))
         self.last_box = box
         self.last_seen = time.time()
@@ -40,6 +45,7 @@ class PlateTrack:
             self.best_crop_conf = confidence
 
     def best_guess(self) -> tuple[str, float] | None:
+        """Возвращает самый частый номер в голосах и его среднюю уверенность."""
         if not self.votes:
             return None
         texts = [t for t, _ in self.votes if t]
@@ -58,6 +64,7 @@ class PlateTracker:
     """
 
     def __init__(self, iou_threshold: float = 0.3, track_timeout_sec: float = 3.0):
+        """Сохраняет порог IoU и таймаут трека, инициализирует хранилище треков."""
         self.iou_threshold = iou_threshold
         self.track_timeout_sec = track_timeout_sec
         self.tracks: dict[int, PlateTrack] = {}

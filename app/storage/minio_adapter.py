@@ -1,3 +1,5 @@
+"""Адаптер к MinIO: загрузка фото/кропов номеров и построение их URL."""
+
 import io
 import uuid
 from datetime import datetime
@@ -8,6 +10,7 @@ from minio.error import S3Error
 
 
 def _client() -> Minio:
+    """Создаёт клиент MinIO из настроек Django (endpoint, ключи, TLS)."""
     return Minio(
         settings.MINIO_ENDPOINT,
         access_key=settings.MINIO_ACCESS_KEY,
@@ -17,6 +20,7 @@ def _client() -> Minio:
 
 
 def ensure_bucket() -> None:
+    """Гарантирует существование бакета, создавая его при первом обращении."""
     client = _client()
     bucket = settings.MINIO_BUCKET
     if not client.bucket_exists(bucket):
@@ -76,6 +80,7 @@ def upload_plate_crop(image_bytes: bytes, plate_text: str) -> str:
 
 
 def object_exists(object_key: str) -> bool:
+    """Проверяет наличие объекта в бакете, возвращая False при ошибке S3."""
     if not object_key:
         return False
     try:

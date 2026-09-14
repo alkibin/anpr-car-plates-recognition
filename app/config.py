@@ -1,8 +1,11 @@
+"""Параметры конфигурации пайплайна ANPR (Pydantic-settings, читает .env)."""
+
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Конфигурация пайплайна: RTSP, YOLO, OCR, Redis, MinIO и др."""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     rtsp_url: str = "rtsp://localhost:8554/mystream"

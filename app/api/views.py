@@ -1,3 +1,5 @@
+"""JSON REST API: списки номеров, распознаваний и статистика (no DRF)."""
+
 from datetime import datetime, timedelta
 
 from django.db.models import Count, Q
@@ -13,6 +15,7 @@ MAX_LIMIT = 200
 
 
 def _int_param(request, name, default):
+    """Возвращает целочисленный GET-параметр, при ошибке — значение по умолчанию."""
     try:
         return max(int(request.GET.get(name, default)), 0)
     except (TypeError, ValueError):
@@ -20,12 +23,14 @@ def _int_param(request, name, default):
 
 
 def _pagination(request):
+    """Извлекает limit/offset из запроса, ограничивая limit максимальным значением."""
     limit = min(_int_param(request, "limit", DEFAULT_LIMIT), MAX_LIMIT)
     offset = _int_param(request, "offset", 0)
     return limit, offset
 
 
 def _page(count, limit, offset):
+    """Формирует словарь пагинации: количество, лимит, смещение и следующая страница."""
     return {
         "count": count,
         "limit": limit,
@@ -35,6 +40,7 @@ def _page(count, limit, offset):
 
 
 def _plate_dump(plate):
+    """Преобразует объект Plate в JSON-словарь с URL фото и кропа."""
     return {
         "plate_text": plate.plate_text,
         "status": plate.status,
@@ -49,6 +55,7 @@ def _plate_dump(plate):
 
 
 def _detection_dump(d):
+    """Преобразует объект PlateDetection в JSON-словарь с URL кропа."""
     return {
         "id": d.id,
         "plate": d.plate.plate_text,

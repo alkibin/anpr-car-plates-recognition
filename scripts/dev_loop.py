@@ -1,3 +1,4 @@
+"""Пайплайн разработки: RTSP → детекция движения → детекция номеров YOLO → OCR → запись в PostgreSQL (через Django ORM) и MinIO."""
 import os
 import sys
 
@@ -35,6 +36,7 @@ from app.storage import minio_adapter
 
 
 def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop_bytes: bytes):
+    """Сохраняет распознанный номер в PostgreSQL и MinIO: создаёт/обновляет Plate, загружает кроп и стабильное фото номера, создаёт PlateDetection."""
     camera = Camera.objects.filter(is_active=True).first()
 
     plate, _ = Plate.objects.get_or_create(
@@ -65,6 +67,7 @@ def save_detection(plate_text: str, detection_conf: float, ocr_conf: float, crop
 
 
 def main():
+    """Запускает бесконечный цикл обработки кадров: захват видео, детекция движения и номеров, OCR и дедупликация распознанных номеров."""
     motion_detector = MotionDetector(threshold_area=settings.motion_threshold_area)
     plate_detector = PlateDetector(settings.plate_model_path, confidence=settings.plate_confidence)
     ocr = PlateOCR()

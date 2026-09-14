@@ -1,3 +1,5 @@
+"""Настройки Django-проекта: БД (PostgreSQL), MinIO, статика и приложения."""
+
 import os
 from pathlib import Path
 

@@ -1,3 +1,5 @@
+"""OCR-распознавание текста номера через PaddleOCR с постобработкой."""
+
 import re
 import math
 
@@ -18,7 +20,10 @@ REGION_PATTERN = re.compile(r'^[A-Z0-9]{2,3}$', re.IGNORECASE)
 
 class PlateOCR:
 
+    """Читает текст номера с кропа: разбивает на тело и регион, склеивает их."""
+
     def __init__(self):
+        """Инициализирует PaddleOCR с мобильной моделью распознавания (en)."""
         self.ocr = PaddleOCR(
             text_recognition_model_name="PP-OCRv4_mobile_rec",
             use_doc_orientation_classify=False,
@@ -30,6 +35,7 @@ class PlateOCR:
         )
 
     def read(self, plates: list[np.ndarray]):
+        """Распознаёт номера на списке кропов и возвращает (текст, уверенность, кроп)."""
         results = []
 
         for plate in plates:
@@ -70,6 +76,7 @@ class PlateOCR:
 
     @staticmethod
     def _clean(text: str) -> str:
+        """Очищает распознанный текст: верхний регистр, без пробелов, точек и дефисов."""
         return text.upper().replace(" ", "").replace(".", "").replace("-", "")
 
     @staticmethod

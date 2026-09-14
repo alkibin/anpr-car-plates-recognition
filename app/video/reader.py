@@ -1,3 +1,5 @@
+"""Синхронное чтение кадров из RTSP-потока через OpenCV."""
+
 import cv2
 import logging
 
@@ -8,6 +10,7 @@ class RTSPReader:
     """Обёртка над cv2.VideoCapture для чтения кадров из RTSP-потока."""
 
     def __init__(self, url: str):
+        """Открывает RTSP-поток, поднимая ConnectionError при неудаче."""
         self.url = url
         self.cap = cv2.VideoCapture(url)
         if not self.cap.isOpened():
@@ -23,4 +26,5 @@ class RTSPReader:
         return frame
 
     def release(self):
+        """Закрывает захват потока и освобождает ресурсы."""
         self.cap.release()
